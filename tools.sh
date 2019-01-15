@@ -123,6 +123,70 @@ installComposer () {
 }
 
 
+configureNginx () {
+
+
+  # Make sure to run as root
+  user="$(id -un 2>/dev/null || true)"
+
+  if [ "$user" != 'root' ]; then
+    echo "Please try again as root"
+    return 1
+  fi
+
+  # Add Magento $username user and group
+  echo "Please enter the username selected for magento"
+  read username
+  echo "Please enter the url to use (E.g. example.com"
+  
+
+  cat <<EOT >> /etc/nginx/sites-available/example.com
+upstream fastcgi_backend {
+  server   unix:/var/run/php/php7.2-fpm-magento.sock;
+}
+
+server {
+    listen 80;
+    server_name example.com www.example.com;
+
+    include snippets/letsencrypt.conf;
+    return 301 https://example.com$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name www.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/example.com/chain.pem;
+    include snippets/ssl.conf;
+    include snippets/letsencrypt.conf;
+
+    return 301 https://example.com$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name example.com;
+
+    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/example.com/chain.pem;
+    include snippets/ssl.conf;
+    include snippets/letsencrypt.conf;
+
+    set $MAGE_ROOT /opt/magento/public_html;
+    set $MAGE_MODE developer; # or production
+
+    access_log /var/log/nginx/example.com-access.log;
+    error_log /var/log/nginx/example.com-error.log;
+
+    include /opt/magento/public_html/nginx.conf.sample;
+
+EOT
+}	
+
 
 installRcLocalService () {
 
@@ -191,3 +255,4 @@ EXAMPLES
     exit 1
     ;;
 esac
+
