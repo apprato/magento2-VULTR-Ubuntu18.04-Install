@@ -187,6 +187,22 @@ server {
 EOT
 }	
 
+deployCode () {
+  php bin/magento setup:upgrade
+  php bin/magento setup:static-content:deploy -f -a frontend en_AU en_US
+  php bin/magento setup:static-content:deploy -f -a adminhtml en_AU en_US
+  php bin/magento cache:clean && magento cache:flush
+
+  @TODO
+  #sudo chown -R www-data:www-data /var/www/magento2.com/*
+  #sudo chmod -R 0777 /var/www/magento2.com/var /var/www/magento2.com/pub/media /var/www/magento2.com/pub/static app/etc /var/www/magento2.com/generated
+  #sudo chmod -R 0775 bin/magento
+  #sudo find . -type d -exec chmod 775 {} \;
+  #sudo find . -type f -exec chmod 664 {} \;
+  #sudo chmod -R g+s .
+
+}
+
 
 installRcLocalService () {
 
