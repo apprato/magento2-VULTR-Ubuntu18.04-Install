@@ -191,7 +191,7 @@ deployCode () {
   php bin/magento setup:upgrade
   php bin/magento setup:static-content:deploy -f -a frontend en_AU en_US
   php bin/magento setup:static-content:deploy -f -a adminhtml en_AU en_US
-  php bin/magento cache:clean && magento cache:flush
+  php bin/magento cache:clean && php bin/magento cache:flush
 
   @TODO
   #sudo chown -R www-data:www-data /var/www/magento2.com/*
