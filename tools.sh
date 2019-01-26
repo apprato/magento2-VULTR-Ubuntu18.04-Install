@@ -138,68 +138,57 @@ configureNginx () {
   echo "Please enter the username selected for magento"
   read username
   echo "Please enter the url to use (E.g. example.com"
-  
+  read url  
 
-  cat <<EOT >> /etc/nginx/sites-available/example.com
+  rm /etc/nginx/sites-available/$url
+
+  cat <<EOT >> /etc/nginx/sites-available/$url
 upstream fastcgi_backend {
-  server   unix:/var/run/php/php7.2-fpm-magento.sock;
+  server   unix:/var/run/php/php7.2-fpm-$username.sock;
 }
 
 server {
     listen 80;
-    server_name example.com www.example.com;
+    server_name $url www.$url;
 
-    include snippets/letsencrypt.conf;
-    return 301 https://example.com$request_uri;
+    #include snippets/letsencrypt.conf;
+    return 301 https://$url\$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name www.example.com;
-
-    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/example.com/chain.pem;
-    include snippets/ssl.conf;
-    include snippets/letsencrypt.conf;
-
-    return 301 https://example.com$request_uri;
+    server_name www.$url;
+    return 301 https://$url\$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name example.com;
+    server_name $url;
 
-    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/example.com/chain.pem;
-    include snippets/ssl.conf;
-    include snippets/letsencrypt.conf;
+    set \$MAGE_ROOT /opt/$username/public_html;
+    set \$MAGE_MODE developer; # or production
 
-    set $MAGE_ROOT /opt/magento/public_html;
-    set $MAGE_MODE developer; # or production
+    access_log /var/log/nginx/$url-access.log;
+    error_log /var/log/nginx/$url-error.log;
 
-    access_log /var/log/nginx/example.com-access.log;
-    error_log /var/log/nginx/example.com-error.log;
-
-    include /opt/magento/public_html/nginx.conf.sample;
-
+    include /opt/$username/public_html/nginx.conf.sample;
+}
 EOT
 }	
 
-deployCode () {
-  php bin/magento setup:upgrade
-  php bin/magento setup:static-content:deploy -f -a frontend en_AU en_US
-  php bin/magento setup:static-content:deploy -f -a adminhtml en_AU en_US
-  php bin/magento cache:clean && php bin/magento cache:flush
 
-  @TODO
-  #sudo chown -R www-data:www-data /var/www/magento2.com/*
-  #sudo chmod -R 0777 /var/www/magento2.com/var /var/www/magento2.com/pub/media /var/www/magento2.com/pub/static app/etc /var/www/magento2.com/generated
-  #sudo chmod -R 0775 bin/magento
-  #sudo find . -type d -exec chmod 775 {} \;
-  #sudo find . -type f -exec chmod 664 {} \;
-  #sudo chmod -R g+s .
+confirmNginxConfiguration () {
+
+  # Add Magento $username user and group
+  echo "Please enter the username selected for magento"
+  read username
+  echo "Please enter the url to use (E.g. example.com"
+  read url  
+      
+  sudo nginx -t
+  sudo systemctl restart nginx
+  sudo ln -s /etc/nginx/sites-available/$url /etc/nginx/sites-enabled/ 
+  sudo systemctl restart nginx
 
 }
 
@@ -225,7 +214,13 @@ case "$1" in
     ;;
   installNginx)
     installNginx
-    ;;  
+    ;;
+  configureNginx)
+    configureNginx
+    ;;    
+  confirmNginxConfiguration)
+    confirmNginxConfiguration
+    ;;
   installMySQL)
     installMySQL
     ;;
@@ -251,11 +246,23 @@ SYNOPSIS
     sh tools.sh [-- [OPTIONS...]] [-- [ENVIRONMENT...]]
 
 DESCRIPTION
-    Setup access user, install docker, docker-compose 
+    This is intended as a utility script to setup Magento2 on a Ubuntu 18.04 server on VULTR or AWS
+    The suggested sequence to install is 
+    Become the root user
+    - sh tools.sh installMagentoUser
+    - sh tools.sh installMySQL
+    - sh tools.sh installNginx
+    - sh tools.sh installPHP
+    - sh tools.sh configurePHP
+    - sh tools.sh installPool
+    - sh tools.sh configureNginx
+    - sh tools.sh confirmNginxConfiguration
 
 OPTIONS
     installRcLocalService                     Install /etc/rc.local to run commands when the system is rebooted.
     installNginx                              Install nGInx and open ports 80 & 443 on firewall
+    configureNginx		              configureNginx use your magento user and url		
+    confirmNginxConfiguration		      confirm and test nginx configuration
     installMySQL 		              installMySQL
     installMagentoUser                        installMagentoUser
     installPHP                                installPHP, php-fpm
@@ -271,4 +278,3 @@ EXAMPLES
     exit 1
     ;;
 esac
-
